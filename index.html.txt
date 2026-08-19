@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metaverse Platform Sandbox</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #0f1011; color: #fff; overflow: hidden; width: 100vw; height: 100vh; user-select: none; }
+
+    /* Canvas */
+    #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+    /* Top HUD / Navbar */
+    #navbar {
+      position: absolute; top: 0; left: 0; width: 100%; z-index: 10;
+      background: rgba(25, 27, 29, 0.85); backdrop-filter: blur(10px);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #232527;
+    }
+    .hud-title { font-weight: bold; font-size: 1.2rem; color: #00A2FF; letter-spacing: 1px; cursor: pointer; }
+    .hud-stats { display: flex; gap: 15px; font-weight: 600; font-size: 0.95rem; }
+    .stat-badge { background: #111213; padding: 6px 14px; border-radius: 20px; border: 1px solid #333; }
+    .stat-badge span { color: #00A2FF; }
+
+    /* Sidebar Nav */
+    #sidebar {
+      position: absolute; top: 60px; left: 0; width: 200px; height: calc(100vh - 60px); z-index: 10;
+      background: rgba(17, 18, 19, 0.85); backdrop-filter: blur(10px);
+      border-right: 1px solid #232527; padding: 20px 10px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .nav-item {
+      padding: 12px 16px; border-radius: 8px; color: #aaa; text-decoration: none;
+      font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .nav-item:hover, .nav-item.active { background: rgba(0, 162, 255, 0.15); color: #00A2FF; }
+
+    /* Dashboard Overlay */
+    #dashboard-overlay {
+      position: absolute; top: 60px; left: 200px; width: calc(100vw - 480px); height: calc(100vh - 60px);
+      z-index: 5; padding: 24px; overflow-y: auto; pointer-events: auto;
+    }
+    .section-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 16px; color: #fff; }
+    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+    .game-card {
+      background: rgba(25, 27, 29, 0.9); border: 1px solid #232527; border-radius: 12px;
+      padding: 12px; cursor: pointer; transition: transform 0.2s, border-color 0.2s;
+    }
+    .game-card:hover { transform: translateY(-4px); border-color: #00A2FF; }
+    .game-thumb { width: 100%; height: 100px; background: #111213; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; font-size: 2rem; }
+    .game-name { font-weight: bold; font-size: 0.95rem; margin-bottom: 4px; }
+    .game-players { font-size: 0.75rem; color: #888; }
+
+    /* Modals */
+    .app-modal {
+      display: none; position: absolute; top: 80px; left: 220px; width: calc(100vw - 520px); height: calc(100vh - 100px);
+      background: rgba(25, 27, 29, 0.95); border: 1px solid #232527; border-radius: 12px;
+      z-index: 15; padding: 24px; overflow-y: auto; backdrop-filter: blur(12px);
+    }
+    .modal-close { position: absolute; top: 16px; right: 20px; font-size: 1.2rem; cursor: pointer; color: #888; }
+    .modal-close:hover { color: #fff; }
+
+    /* Emotes Bar */
+    #emotes-bar {
+      position: absolute; bottom: 20px; left: 220px; z-index: 10;
+      background: rgba(17, 18, 19, 0.85); backdrop-filter: blur(10px);
+      border: 1px solid #232527; border-radius: 30px; padding: 6px 16px; display: flex; gap: 12px;
+    }
+    .emote-btn {
+      background: #191B1D; border: 1px solid #333; color: #fff; padding: 8px 14px;
+      border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: all 0.2s;
+    }
+    .emote-btn:hover { border-color: #00A2FF; color: #00A2FF; }
+
+    /* Right Social Sidebar */
+    #social-sidebar {
+      position: absolute; top: 60px; right: 0; width: 280px; height: calc(100vh - 60px); z-index: 10;
+      background: rgba(17, 18, 19, 0.85); backdrop-filter: blur(10px);
+      border-left: 1px solid #232527; display: flex; flex-direction: column;
+    }
+    .chat-tabs { display: flex; border-bottom: 1px solid #232527; }
+    .chat-tab { flex: 1; padding: 12px; text-align: center; font-size: 0.8rem; font-weight: bold; color: #888; cursor: pointer; }
+    .chat-tab.active { color: #00A2FF; border-bottom: 2px solid #00A2FF; }
+    
+    .panel-content { flex: 1; display: none; flex-direction: column; padding: 12px; overflow-y: auto; }
+    .panel-content.active { display: flex; }
+    
+    .chat-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; margin-bottom: 10px; }
+    .chat-msg { background: rgba(255, 255, 255, 0.05); padding: 8px 10px; border-radius: 6px; }
+    .chat-msg span { color: #00A2FF; font-weight: bold; }
+    .chat-msg.bot span { color: #FF9900; }
+    .chat-input-box { padding: 10px; border-top: 1px solid #232527; }
+    .chat-input-box input { width: 100%; background: #111213; border: 1px solid #232527; border-radius: 6px; padding: 8px 10px; color: #fff; outline: none; }
+
+    .friend-item, .player-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(25, 27, 29, 0.9); border: 1px solid #232527; border-radius: 8px;
+      padding: 10px; margin-bottom: 8px; font-size: 0.85rem;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .online { background: #00FF88; }
+    .offline { background: #555; }
+    .btn-action { background: #00A2FF; color: #fff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; font-weight: bold; }
+    .btn-action:hover { background: #0082cc; }
+
+    /* Auth Overlay */
+    #auth-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
+      background: rgba(15, 16, 17, 0.95); backdrop-filter: blur(8px);
+      display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;
+    }
+    .auth-card {
+      background: #191B1D; border: 1px solid #232527; border-radius: 16px;
+      padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); text-align: center;
+    }
+    .auth-card h2 { margin-bottom: 4px; font-size: 1.5rem; }
+    .auth-card p { color: #888; font-size: 0.85rem; margin-bottom: 16px; }
+    .char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .character-card {
+      background: #111213; border: 2px solid #232527; border-radius: 10px;
+      padding: 10px; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .character-card:hover { border-color: #555; }
+    .character-card.selected { border-color: #00A2FF; background: rgba(0, 162, 255, 0.1); }
+    .char-icon { font-size: 1.5rem; }
+    .char-name { font-size: 0.75rem; font-weight: bold; }
+    .input-group { text-align: left; margin-bottom: 12px; }
+    .input-group label { display: block; font-size: 0.75rem; color: #aaa; margin-bottom: 4px; }
+    .input-group input { width: 100%; background: #111213; border: 1px solid #232527; border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 0.9rem; outline: none; }
+    .btn-primary { width: 100%; background: #00A2FF; color: #fff; border: none; border-radius: 8px; padding: 12px; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+    .btn-primary:hover { background: #0082cc; }
+    .auth-links { margin-top: 12px; display: flex; justify-content: space-between; font-size: 0.8rem; }
+    .auth-link { color: #00A2FF; text-decoration: none; cursor: pointer; font-weight: 600; }
+    .auth-link:hover { text-decoration: underline; }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <!-- Top UI HUD -->
+  <div id="navbar">
+    <div class="hud-title" onclick="showDashboard()">METAVERSE PLATFORM</div>
+    <div class="hud-stats">
+      <div class="stat-badge">M$ Coins: <span id="user-coins">500</span></div>
+      <div class="stat-badge">XP: <span id="user-xp">1000</span></div>
+    </div>
+  </div>
+
+  <!-- Left Navigation Sidebar -->
+  <div id="sidebar">
+    <div class="nav-item active" id="nav-home" onclick="showDashboard()">🏠 Home</div>
+    <div class="nav-item" id="nav-games" onclick="openModal('modal-games')">🎮 Games</div>
+    <div class="nav-item" id="nav-shop" onclick="openModal('modal-shop')">🛍️ Avatar Shop</div>
+    <div class="nav-item" id="nav-updates" onclick="openModal('modal-updates')">📜 Update Logs</div>
+    <div class="nav-item" id="nav-settings" onclick="openModal('modal-settings')">⚙️ Settings</div>
+  </div>
+
+  <!-- Emotes Bar -->
+  <div id="emotes-bar">
+    <button class="emote-btn" onclick="triggerEmote('dance')">💃 Dance (1)</button>
+    <button class="emote-btn" onclick="triggerEmote('wave')">👋 Wave (2)</button>
+    <button class="emote-btn" onclick="triggerEmote('flip')">🔄 Flip (3)</button>
+  </div>
+
+  <!-- Main Dashboard Overlay -->
+  <div id="dashboard-overlay">
+    <div class="section-title">Popular Experiences</div>
+    <div class="games-grid">
+      <div class="game-card" onclick="launchGame('sandbox')">
+        <div class="game-thumb">🚀</div>
+        <div class="game-name">3D Sandbox Park</div>
+        <div class="game-players">1,240 Playing</div>
+      </div>
+      <div class="game-card" onclick="launchGame('racers')">
+        <div class="game-thumb">🏎️</div>
+        <div class="game-name">Neon Racers</div>
+        <div class="game-players">850 Playing</div>
+      </div>
+      <div class="game-card" onclick="launchGame('sword')">
+        <div class="game-thumb">⚔️</div>
+        <div class="game-name">Sword Clash</div>
+        <div class="game-players">2,100 Playing</div>
+      </div>
+      <div class="game-card" onclick="launchGame('tycoon')">
+        <div class="game-thumb">🏰</div>
+        <div class="game-name">Tycoon Empire</div>
+        <div class="game-players">540 Playing</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Modals -->
+  <div id="modal-games" class="app-modal">
+    <span class="modal-close" onclick="closeModals()">✖</span>
+    <div class="section-title">All Experiences</div>
+    <p style="color:#aaa; margin-bottom: 15px;">Browse all community-created sub-games.</p>
+    <div class="games-grid">
+      <div class="game-card" onclick="launchGame('sandbox')"><div class="game-thumb">🚀</div><div class="game-name">3D Sandbox Park</div></div>
+      <div class="game-card" onclick="launchGame('racers')"><div class="game-thumb">🏎️</div><div class="game-name">Neon Racers</div></div>
+      <div class="game-card" onclick="launchGame('sword')"><div class="game-thumb">⚔️</div><div class="game-name">Sword Clash</div></div>
+      <div class="game-card" onclick="launchGame('tycoon')"><div class="game-thumb">🏰</div><div class="game-name">Tycoon Empire</div></div>
+    </div>
+  </div>
+
+  <div id="modal-shop" class="app-modal">
+    <span class="modal-close" onclick="closeModals()">✖</span>
+    <div class="section-title">Avatar Shop</div>
+    <p style="color:#aaa; margin-bottom: 15px;">Equip new cosmetics using M$ Coins!</p>
+    <div class="games-grid">
+      <div class="game-card" onclick="buySkin('skin_gold', 200)"><div class="game-thumb">✨</div><div class="game-name">Gold Armor</div><div class="game-players">200 Coins</div></div>
+      <div class="game-card" onclick="buySkin('skin_red', 150)"><div class="game-thumb">🔥</div><div class="game-name">Crimson Suit</div><div class="game-players">150 Coins</div></div>
+      <div class="game-card" onclick="buySkin('skin_guest', 0)"><div class="game-thumb">🔷</div><div class="game-name">Classic Blue</div><div class="game-players">Free</div></div>
+    </div>
+  </div>
+
+  <div id="modal-updates" class="app-modal">
+    <span class="modal-close" onclick="closeModals()">✖</span>
+    <div class="section-title">📜 Update Logs (v2.0)</div>
+    <div style="line-height:1.6; color:#ccc;">
+      <p><b style="color:#00A2FF;">✨ What's New:</b></p>
+      <ul style="margin-left:20px; margin-bottom:15px;">
+        <li><b>3D Environment Upgrade:</b> Added realistic grass ground, trees, and wooden obstacle blocks!</li>
+        <li><b>Roblox-style Zoom:</b> Use your mouse scroll wheel to zoom the camera in and out smoothly.</li>
+        <li><b>Uncursed Backflip:</b> Fixed key '3' backflip emote math so you complete a perfect 360 rotation without getting stuck!</li>
+        <li><b>Wandering AI NPCs:</b> In-game characters now walk around the map dynamically.</li>
+        <li><b>Realtime Auto-Save:</b> Position, progress, coins, and settings now auto-save to your account continuously.</li>
+      </ul>
+      <p><b style="color:#00FF88;">🐛 Bug Fixes:</b> Fixed input focus bugs, smooth camera physics, and emote animation glitches.</p>
+    </div>
+  </div>
+
+  <div id="modal-settings" class="app-modal">
+    <span class="modal-close" onclick="closeModals()">✖</span>
+    <div class="section-title">Settings</div>
+    <div style="margin-top:20px; display:flex; flex-direction:column; gap:15px; max-width: 300px;">
+      <label><input type="checkbox" checked> Enable Sound Effects</label>
+      <label><input type="checkbox" checked> Show Player Names</label>
+      <button class="btn-primary" onclick="openAuthOverlay()">Switch Account / Log Out</button>
+    </div>
+  </div>
+
+  <!-- Right Social Sidebar -->
+  <div id="social-sidebar">
+    <div class="chat-tabs">
+      <div class="chat-tab active" onclick="switchTab('global')">GLOBAL</div>
+      <div class="chat-tab" onclick="switchTab('friends')">FRIENDS</div>
+      <div class="chat-tab" onclick="switchTab('players')">PLAYERS</div>
+    </div>
+
+    <div id="panel-global" class="panel-content active">
+      <div class="chat-box" id="chat-messages">
+        <div class="chat-msg"><span>System:</span> Welcome to Metaverse Platform v2.0!</div>
+        <div class="chat-msg bot"><span>PlayerOne:</span> Anyone want to race?</div>
+        <div class="chat-msg bot"><span>NovaRider:</span> Check out the trees and jump pad!</div>
+      </div>
+      <div class="chat-input-box">
+        <input type="text" id="chat-input" placeholder="Type a message or chat with NPCs...">
+      </div>
+    </div>
+
+    <div id="panel-friends" class="panel-content">
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <input type="text" id="friend-search" placeholder="Add friend..." style="flex:1; background:#111213; border:1px solid #232527; padding:6px 10px; color:#fff; border-radius:6px; outline:none;">
+        <button class="btn-action" onclick="addFriend()">Add</button>
+      </div>
+      <div id="friends-list"></div>
+    </div>
+
+    <div id="panel-players" class="panel-content">
+      <div id="players-list"></div>
+    </div>
+  </div>
+
+  <!-- 3D Canvas -->
+  <div id="canvas-container"></div>
+
+  <!-- Auth Overlay -->
+  <div id="auth-overlay">
+    <div class="auth-card">
+      <h2 id="auth-title">Create Account</h2>
+      <p id="auth-sub">Pick a starter character & get M$ 500 Meta Coins + 1,000 XP!</p>
+
+      <div id="char-select-section" class="char-grid">
+        <div class="character-card selected" data-skin="skin_guest"><span class="char-icon">⚔️</span><span class="char-name">Cyber Knight</span></div>
+        <div class="character-card" data-skin="skin_gold"><span class="char-icon">🚀</span><span class="char-name">Astro Explorer</span></div>
+        <div class="character-card" data-skin="skin_red"><span class="char-icon">🐉</span><span class="char-name">Dragon Master</span></div>
+        <div class="character-card" data-skin="skin_guest"><span class="char-icon">🧙</span><span class="char-name">Mystic Wizard</span></div>
+        <div class="character-card" data-skin="skin_red"><span class="char-icon">🥷</span><span class="char-name">Shadow Ninja</span></div>
+        <div class="character-card" data-skin="skin_gold"><span class="char-icon">⚔️</span><span class="char-name">Cyber Samurai</span></div>
+      </div>
+
+      <div class="input-group" id="group-email">
+        <label>Email Address</label>
+        <input type="email" id="email-input" placeholder="name@domain.com">
+      </div>
+      <div class="input-group" id="group-username">
+        <label>Metaverse Username</label>
+        <input type="text" id="username-input" placeholder="Choose a username">
+      </div>
+      <div class="input-group" id="group-password">
+        <label>Password</label>
+        <input type="password" id="password-input" placeholder="Password">
+      </div>
+
+      <button id="btn-auth-submit" class="btn-primary">Sign Up & Claim Rewards</button>
+      
+      <div class="auth-links">
+        <a id="btn-toggle-mode" class="auth-link">Already have an account? Log In</a>
+        <a id="btn-forgot-pass" class="auth-link">Forgot Password?</a>
+      </div>
+      <div style="margin-top:10px;">
+        <a id="btn-guest" class="auth-link" style="color:#888;">Play as Guest</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* STATE & DATA PERSISTENCE MANAGEMENT */
+    let userAccount = JSON.parse(localStorage.getItem('game_user_v2')) || {
+      username: 'Guest',
+      coins: 500,
+      xp: 1000,
+      equipped: { skin: 'skin_guest' },
+      savedPos: { x: 0, y: 0, z: 0 },
+      cameraDist: 10
+    };
+
+    let friendsList = JSON.parse(localStorage.getItem('game_friends_v2')) || [
+      { name: 'PlayerOne', online: true },
+      { name: 'NovaRider', online: true },
+      { name: 'PixelKing', online: false }
+    ];
+
+    let npcBots = [
+      { name: 'PlayerOne', responses: ["Let's race to the jump pad!", "I love this green park!", "Check out my avatar!"] },
+      { name: 'NovaRider', responses: ["Hey there!", "Scroll your mouse wheel to zoom in & out!", "Press 3 to flip!"] }
+    ];
+
+    let authMode = 'signup';
+
+    function saveState() {
+      localStorage.setItem('game_user_v2', JSON.stringify(userAccount));
+      localStorage.setItem('game_friends_v2', JSON.stringify(friendsList));
+      document.getElementById('user-coins').innerText = userAccount.coins;
+      document.getElementById('user-xp').innerText = userAccount.xp;
+    }
+
+    /* UI TABS & MODALS */
+    function switchTab(tab) {
+      document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+      
+      if (tab === 'global') {
+        document.querySelectorAll('.chat-tab')[0].classList.add('active');
+        document.getElementById('panel-global').classList.add('active');
+      } else if (tab === 'friends') {
+        document.querySelectorAll('.chat-tab')[1].classList.add('active');
+        document.getElementById('panel-friends').classList.add('active');
+        renderFriends();
+      } else if (tab === 'players') {
+        document.querySelectorAll('.chat-tab')[2].classList.add('active');
+        document.getElementById('panel-players').classList.add('active');
+        renderPlayers();
+      }
+    }
+
+    function openModal(id) {
+      closeModals();
+      document.getElementById(id).style.display = 'block';
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      if(id === 'modal-games') document.getElementById('nav-games').classList.add('active');
+      if(id === 'modal-shop') document.getElementById('nav-shop').classList.add('active');
+      if(id === 'modal-updates') document.getElementById('nav-updates').classList.add('active');
+      if(id === 'modal-settings') document.getElementById('nav-settings').classList.add('active');
+    }
+
+    function closeModals() {
+      document.querySelectorAll('.app-modal').forEach(m => m.style.display = 'none');
+    }
+
+    function showDashboard() {
+      closeModals();
+      document.getElementById('dashboard-overlay').style.display = 'block';
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      document.getElementById('nav-home').classList.add('active');
+    }
+
+    function buySkin(skinKey, cost) {
+      if (userAccount.coins >= cost) {
+        if (cost > 0 && userAccount.equipped.skin !== skinKey) userAccount.coins -= cost;
+        userAccount.equipped.skin = skinKey;
+        saveState();
+        updateCharacterAppearance();
+        alert('Equipped ' + skinKey + '!');
+      } else {
+        alert('Not enough coins!');
+      }
+    }
+
+    /* FRIENDS & PLAYERS LIST */
+    function renderFriends() {
+      const list = document.getElementById('friends-list');
+      list.innerHTML = '';
+      friendsList.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'friend-item';
+        item.innerHTML = `
+          <div>
+            <span class="status-dot ${f.online ? 'online' : 'offline'}"></span>
+            <b>${f.name}</b>
+          </div>
+          <button class="btn-action" onclick="inviteFriend('${f.name}')">${f.online ? 'Invite' : 'Message'}</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function addFriend() {
+      const input = document.getElementById('friend-search');
+      if (input.value.trim() !== '') {
+        friendsList.push({ name: input.value.trim(), online: true });
+        input.value = '';
+        saveState();
+        renderFriends();
+      }
+    }
+
+    function inviteFriend(name) {
+      alert(`Sent party invitation to ${name}!`);
+    }
+
+    function renderPlayers() {
+      const list = document.getElementById('players-list');
+      list.innerHTML = '';
+      const npcs = [{ name: userAccount.username, isSelf: true }, ...npcBots];
+      npcs.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'player-item';
+        item.innerHTML = `
+          <div>
+            <span class="status-dot online"></span>
+            <b>${p.name}</b> ${p.isSelf ? '(You)' : ''}
+          </div>
+          ${!p.isSelf ? `<button class="btn-action" onclick="addFriendDirect('${p.name}')">+ Friend</button>` : ''}
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function addFriendDirect(name) {
+      if (!friendsList.some(f => f.name === name)) {
+        friendsList.push({ name: name, online: true });
+        saveState();
+        alert(`Added ${name} to your friends list!`);
+      }
+    }
+
+    /* CHAT & RESPONSIVE BOTS */
+    const chatInput = document.getElementById('chat-input');
+    const chatBox = document.getElementById('chat-messages');
+
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && chatInput.value.trim() !== '') {
+        const userText = chatInput.value.trim();
+        addChatMessage(userAccount.username, userText, false);
+        chatInput.value = '';
+
+        setTimeout(() => {
+          const randomBot = npcBots[Math.floor(Math.random() * npcBots.length)];
+          let reply = randomBot.responses[Math.floor(Math.random() * randomBot.responses.length)];
+          
+          if (userText.toLowerCase().includes('hi') || userText.toLowerCase().includes('hello')) {
+            reply = `Hey ${userAccount.username}! Welcome!`;
+          } else if (userText.toLowerCase().includes('zoom')) {
+            reply = "Use your mouse wheel to zoom in or out Roblox style!";
+          }
+
+          addChatMessage(randomBot.name, reply, true);
+        }, 1000 + Math.random() * 1200);
+      }
+    });
+
+    function addChatMessage(author, text, isBot) {
+      const msg = document.createElement('div');
+      msg.className = `chat-msg ${isBot ? 'bot' : ''}`;
+      msg.innerHTML = `<span>${author}:</span> ${text}`;
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    /* AUTH OVERLAY HANDLERS */
+    const authTitle = document.getElementById('auth-title');
+    const authSub = document.getElementById('auth-sub');
+    const btnSubmit = document.getElementById('btn-auth-submit');
+    const charSection = document.getElementById('char-select-section');
+    const groupUsername = document.getElementById('group-username');
+    const groupPassword = document.getElementById('group-password');
+    const toggleLink = document.getElementById('btn-toggle-mode');
+
+    toggleLink.addEventListener('click', () => {
+      if (authMode === 'signup') {
+        authMode = 'login';
+        authTitle.innerText = 'Welcome Back';
+        authSub.innerText = 'Enter your credentials to log in.';
+        btnSubmit.innerText = 'Log In';
+        charSection.style.display = 'none';
+        groupUsername.style.display = 'none';
+        toggleLink.innerText = "Don't have an account? Sign Up";
+      } else {
+        authMode = 'signup';
+        authTitle.innerText = 'Create Account';
+        authSub.innerText = 'Pick a starter character & get M$ 500 Meta Coins + 1,000 XP!';
+        btnSubmit.innerText = 'Sign Up & Claim Rewards';
+        charSection.style.display = 'grid';
+        groupUsername.style.display = 'block';
+        groupPassword.style.display = 'block';
+        toggleLink.innerText = 'Already have an account? Log In';
+      }
+    });
+
+    document.getElementById('btn-forgot-pass').addEventListener('click', () => {
+      authMode = 'forgot';
+      authTitle.innerText = 'Reset Password';
+      authSub.innerText = 'Enter your email to receive a password reset link.';
+      btnSubmit.innerText = 'Send Reset Link';
+      charSection.style.display = 'none';
+      groupUsername.style.display = 'none';
+      groupPassword.style.display = 'none';
+      toggleLink.innerText = 'Back to Log In';
+    });
+
+    document.querySelectorAll('.character-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        const skinType = card.getAttribute('data-skin');
+        if (skinType) userAccount.equipped.skin = skinType;
+        updateCharacterAppearance();
+      });
+    });
+
+    function openAuthOverlay() {
+      closeModals();
+      document.getElementById('auth-overlay').style.display = 'flex';
+    }
+
+    function enterGame() {
+      const usernameVal = document.getElementById('username-input').value.trim();
+      if (usernameVal) userAccount.username = usernameVal;
+      saveState();
+      document.getElementById('auth-overlay').style.display = 'none';
+    }
+
+    btnSubmit.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (authMode === 'forgot') {
+        alert('Reset email sent!');
+        toggleLink.click();
+      } else {
+        enterGame();
+      }
+    });
+
+    document.getElementById('btn-guest').addEventListener('click', (e) => { e.preventDefault(); enterGame(); });
+
+    /* 3D ENGINE & SCENE SETUP */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x191B1D);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(20, 40, 20);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    /* GRASS GROUND & ENVIRONMENT PROPS */
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x2e8b57, roughness: 0.9 }); // Vibrant Grass Green
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const grid = new THREE.GridHelper(200, 40, 0x00A2FF, 0x1f5e3b);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    // Tree creation function
+    function createTree(x, z) {
+      const treeGroup = new THREE.Group();
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.9 });
+      const leavesMat = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.6 });
+
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.5, 8), trunkMat);
+      trunk.position.y = 1.25;
+      treeGroup.add(trunk);
+
+      const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 8), leavesMat);
+      leaves.position.y = 4;
+      treeGroup.add(leaves);
+
+      treeGroup.position.set(x, 0, z);
+      scene.add(treeGroup);
+    }
+
+    // Wooden crate obstacle prop creation function
+    function createBoxProp(x, z) {
+      const boxMat = new THREE.MeshStandardMaterial({ color: 0xD2B48C, roughness: 0.7 });
+      const box = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), boxMat);
+      box.position.set(x, 0.9, z);
+      scene.add(box);
+    }
+
+    // Spawn Environment Props
+    const treeCoords = [
+      {x: -12, z: -10}, {x: -15, z: 8}, {x: 12, z: -12}, {x: 18, z: 15},
+      {x: -20, z: -25}, {x: 22, z: -20}, {x: 5, z: 20}, {x: -8, z: 18}
+    ];
+    treeCoords.forEach(c => createTree(c.x, c.z));
+
+    createBoxProp(-4, -12);
+    createBoxProp(8, -4);
+    createBoxProp(-10, 5);
+
+    /* AVATAR RIGGING */
+    const playerGroup = new THREE.Group();
+    scene.add(playerGroup);
+
+    const matBody = new THREE.MeshStandardMaterial({ color: 0x00A2FF });
+    const matLimb = new THREE.MeshStandardMaterial({ color: 0x111213 });
+    const matHead = new THREE.MeshStandardMaterial({ color: 0xffcc99 });
+
+    const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), matBody);
+    torsoMesh.position.y = 1.2;
+    playerGroup.add(torsoMesh);
+
+    const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matHead);
+    headMesh.position.y = 2.15;
+    playerGroup.add(headMesh);
+
+    const leftArmPivot = new THREE.Group();
+    leftArmPivot.position.set(-0.75, 1.6, 0);
+    playerGroup.add(leftArmPivot);
+    const leftArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.1, 0.4), matLimb);
+    leftArmMesh.position.y = -0.55;
+    leftArmPivot.add(leftArmMesh);
+
+    const rightArmPivot = new THREE.Group();
+    rightArmPivot.position.set(0.75, 1.6, 0);
+    playerGroup.add(rightArmPivot);
+    const rightArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.1, 0.4), matLimb);
+    rightArmMesh.position.y = -0.55;
+    rightArmPivot.add(rightArmMesh);
+
+    const swordMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 1.2, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 })
+    );
+    swordMesh.position.set(0, -0.6, 0.4);
+    swordMesh.visible = false;
+    rightArmPivot.add(swordMesh);
+
+    const leftLegPivot = new THREE.Group();
+    leftLegPivot.position.set(-0.28, 1.0, 0);
+    playerGroup.add(leftLegPivot);
+    const leftLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.1, 0.45), matLimb);
+    leftLegMesh.position.y = -0.55;
+    leftLegPivot.add(leftLegMesh);
+
+    const rightLegPivot = new THREE.Group();
+    rightLegPivot.position.set(0.28, 1.0, 0);
+    playerGroup.add(rightLegPivot);
+    const rightLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.1, 0.45), matLimb);
+    rightLegMesh.position.y = -0.55;
+    rightLegPivot.add(rightLegMesh);
+
+    /* WANDERING NPC AVATARS */
+    const npcsInWorld = [];
+    function createNPCAvatar(x, z, color) {
+      const npcGroup = new THREE.Group();
+      const nTorso = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), new THREE.MeshStandardMaterial({ color }));
+      nTorso.position.y = 1.2;
+      npcGroup.add(nTorso);
+      const nHead = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matHead);
+      nHead.position.y = 2.15;
+      npcGroup.add(nHead);
+      npcGroup.position.set(x, 0, z);
+      scene.add(npcGroup);
+      
+      npcsInWorld.push({ group: npcGroup, basePos: {x, z}, dirX: Math.random() - 0.5, dirZ: Math.random() - 0.5 });
+    }
+    createNPCAvatar(-5, -6, 0xFF0055);
+    createNPCAvatar(6, -8, 0x00FF88);
+
+    function updateCharacterAppearance() {
+      if (userAccount.equipped.skin === 'skin_gold') torsoMesh.material.color.setHex(0xFFD700);
+      else if (userAccount.equipped.skin === 'skin_red') torsoMesh.material.color.setHex(0xFF2222);
+      else torsoMesh.material.color.setHex(0x00A2FF);
+    }
+
+    let speed = 0.15;
+    function launchGame(type) {
+      document.getElementById('dashboard-overlay').style.display = 'none';
+      closeModals();
+
+      if (type === 'racers') {
+        speed = 0.35;
+        swordMesh.visible = false;
+        grid.material.color.setHex(0xFF0055);
+      } else if (type === 'sword') {
+        speed = 0.18;
+        swordMesh.visible = true;
+        grid.material.color.setHex(0x00FF88);
+      } else {
+        speed = 0.15;
+        swordMesh.visible = false;
+        grid.material.color.setHex(0x00A2FF);
+      }
+    }
+
+    /* PROPS & COINS */
+    const jumpPad = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.8, 2, 0.2, 32),
+      new THREE.MeshStandardMaterial({ color: 0x00A2FF, emissive: 0x00A2FF, emissiveIntensity: 0.5 })
+    );
+    jumpPad.position.set(0, 0.1, -10);
+    scene.add(jumpPad);
+
+    const coins = [];
+    const coinPositions = [{ x: -6, y: 1.2, z: -6 }, { x: 6, y: 1.2, z: -6 }, { x: 0, y: 1.2, z: -16 }];
+    const coinGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 16);
+    const coinMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.8, roughness: 0.2 });
+
+    coinPositions.forEach(pos => {
+      const coin = new THREE.Mesh(coinGeo, coinMat);
+      coin.rotation.x = Math.PI / 2;
+      coin.position.set(pos.x, pos.y, pos.z);
+      coin.userData = { active: true, baseY: pos.y };
+      scene.add(coin);
+      coins.push(coin);
+    });
+
+    /* CONTROLS, ZOOM & PHYSICS */
+    const keys = {};
+    let playerPos = { x: userAccount.savedPos.x || 0, y: userAccount.savedPos.y || 0, z: userAccount.savedPos.z || 0 };
+    let cameraDistance = userAccount.cameraDist || 10;
+    let velocityY = 0;
+    let isGrounded = true;
+    let currentEmote = null;
+    let emoteTimer = 0;
+
+    // Roblox-Style Zoom In / Out controls via Wheel
+    window.addEventListener('wheel', (e) => {
+      if (e.deltaY > 0) {
+        cameraDistance = Math.min(cameraDistance + 1.2, 25); // Zoom out
+      } else {
+        cameraDistance = Math.max(cameraDistance - 1.2, 3); // Zoom in
+      }
+      userAccount.cameraDist = cameraDistance;
+      saveState();
+    });
+
+    function triggerEmote(emote) {
+      currentEmote = emote;
+      emoteTimer = 0;
+      if (emote === 'flip') torsoMesh.rotation.x = 0;
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+      
+      const key = e.key.toLowerCase();
+      keys[key] = true;
+      
+      if ((key === ' ' || key === 'spacebar') && isGrounded) {
+        velocityY = 0.25;
+        isGrounded = false;
+      }
+
+      if (key === '1') triggerEmote('dance');
+      if (key === '2') triggerEmote('wave');
+      if (key === '3') triggerEmote('flip');
+    });
+
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+    let saveCounter = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      let moveX = 0, moveZ = 0;
+      if (keys['w'] || keys['arrowup']) moveZ -= 1;
+      if (keys['s'] || keys['arrowdown']) moveZ += 1;
+      if (keys['a'] || keys['arrowleft']) moveX -= 1;
+      if (keys['d'] || keys['arrowright']) moveX += 1;
+
+      const isMoving = (moveX !== 0 || moveZ !== 0);
+      if (isMoving && currentEmote) {
+        currentEmote = null;
+        torsoMesh.rotation.x = 0;
+      }
+
+      const currentSpeed = (keys['shift'] && isMoving) ? speed * 1.6 : speed;
+
+      if (isMoving) {
+        const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
+        playerPos.x += (moveX / len) * currentSpeed;
+        playerPos.z += (moveZ / len) * currentSpeed;
+
+        const targetAngle = Math.atan2(moveX, moveZ);
+        let diff = targetAngle - playerGroup.rotation.y;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        playerGroup.rotation.y += diff * 0.2;
+      }
+
+      velocityY += -0.012;
+      playerPos.y += velocityY;
+      if (playerPos.y <= 0) {
+        playerPos.y = 0;
+        velocityY = 0;
+        isGrounded = true;
+      }
+
+      // Jump Pad
+      const dxPad = playerPos.x - jumpPad.position.x;
+      const dzPad = playerPos.z - jumpPad.position.z;
+      if (Math.sqrt(dxPad * dxPad + dzPad * dzPad) < 1.8 && playerPos.y <= 0.2) {
+        velocityY = 0.55;
+        isGrounded = false;
+      }
+
+      // Coins
+      coins.forEach(coin => {
+        if (coin.userData.active) {
+          coin.rotation.z += 0.04;
+          coin.position.y = coin.userData.baseY + Math.sin(Date.now() * 0.005) * 0.15;
+
+          const dx = playerPos.x - coin.position.x;
+          const dz = playerPos.z - coin.position.z;
+          if (Math.sqrt(dx * dx + dz * dz) < 1.2 && Math.abs(playerPos.y - coin.position.y) < 1.5) {
+            coin.userData.active = false;
+            scene.remove(coin);
+            userAccount.coins += 50;
+            userAccount.xp += 25;
+            saveState();
+          }
+        }
+      });
+
+      playerGroup.position.set(playerPos.x, playerPos.y, playerPos.z);
+
+      // Wandering NPCs Update
+      npcsInWorld.forEach(npc => {
+        npc.group.position.x += npc.dirX * 0.03;
+        npc.group.position.z += npc.dirZ * 0.03;
+
+        const distFromBase = Math.sqrt(Math.pow(npc.group.position.x - npc.basePos.x, 2) + Math.pow(npc.group.position.z - npc.basePos.z, 2));
+        if (distFromBase > 8) {
+          npc.dirX *= -1;
+          npc.dirZ *= -1;
+        }
+      });
+
+      // Animations & Uncursed Backflip Math
+      emoteTimer += 0.05;
+      if (currentEmote === 'dance') {
+        leftArmPivot.rotation.x = Math.sin(emoteTimer * 4) * 1.2;
+        rightArmPivot.rotation.x = -Math.sin(emoteTimer * 4) * 1.2;
+        playerGroup.rotation.y += 0.05;
+      } else if (currentEmote === 'wave') {
+        rightArmPivot.rotation.x = -2.5;
+        rightArmPivot.rotation.z = Math.sin(emoteTimer * 6) * 0.4;
+      } else if (currentEmote === 'flip') {
+        // Uncursed flip: clean full 360 degree rotation pitch reset
+        const flipProgress = emoteTimer * 4;
+        if (flipProgress <= Math.PI * 2) {
+          torsoMesh.rotation.x = -flipProgress;
+        } else {
+          torsoMesh.rotation.x = 0;
+          currentEmote = null;
+        }
+      } else if (!isGrounded) {
+        leftArmPivot.rotation.x = rightArmPivot.rotation.x = -1.2;
+        leftLegPivot.rotation.x = 0.3;
+        rightLegPivot.rotation.x = -0.3;
+      } else if (isMoving) {
+        leftArmPivot.rotation.x = Math.sin(emoteTimer * 2) * 0.7;
+        rightArmPivot.rotation.x = -Math.sin(emoteTimer * 2) * 0.7;
+        leftLegPivot.rotation.x = -Math.sin(emoteTimer * 2) * 0.7;
+        rightLegPivot.rotation.x = Math.sin(emoteTimer * 2) * 0.7;
+      } else {
+        rightArmPivot.rotation.z = 0;
+        headMesh.position.y = 2.15 + Math.sin(emoteTimer) * 0.04;
+        leftArmPivot.rotation.x = rightArmPivot.rotation.x = 0;
+        leftLegPivot.rotation.x = rightLegPivot.rotation.x = 0;
+      }
+
+      // Roblox Dynamic Camera Follow & Zoom Distance
+      camera.position.x += (playerPos.x - camera.position.x) * 0.1;
+      camera.position.y += ((playerPos.y + (cameraDistance * 0.55)) - camera.position.y) * 0.1;
+      camera.position.z += ((playerPos.z + cameraDistance) - camera.position.z) * 0.1;
+      camera.lookAt(playerPos.x, playerPos.y + 1.5, playerPos.z);
+
+      // Save player position every 60 frames (~1s)
+      saveCounter++;
+      if (saveCounter > 60) {
+        userAccount.savedPos = { x: playerPos.x, y: playerPos.y, z: playerPos.z };
+        saveState();
+        saveCounter = 0;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    saveState();
+    updateCharacterAppearance();
+    animate();
+
+    // Auto-open update log on launch
+    openModal('modal-updates');
+  </script>
+</body>
+</html>
