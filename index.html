@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Metaverse Platform Sandbox</title>
+  <link rel="manifest" href="./manifest.json">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background: #0f1011; color: #fff; overflow: hidden; width: 100vw; height: 100vh; user-select: none; }
@@ -136,17 +137,19 @@
   </style>
 
   <script>
-  // Try to load local three.js first, fallback to CDN if not available
+  // Try to load local three.js first (versioned), fallback to other local name, then CDN
   (function(){
-    var local = './vendor/three.min.js';
-    var script = document.createElement('script');
-    script.src = local;
-    script.onload = function(){ console.log('Loaded local three.js'); };
-    script.onerror = function(){
-      var cdn = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
-      var s2 = document.createElement('script'); s2.src = cdn; document.head.appendChild(s2);
-    };
-    document.head.appendChild(script);
+    var candidates = ['./vendor/three.0.128.0.min.js','./vendor/three.min.js'];
+    var cdn = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
+    function loadCDN(){ var s2 = document.createElement('script'); s2.src = cdn; document.head.appendChild(s2); }
+    function tryLoad(i){
+      if(i>=candidates.length){ loadCDN(); return; }
+      var s = document.createElement('script'); s.src = candidates[i];
+      s.onload = function(){ console.log('Loaded local three.js from', candidates[i]); };
+      s.onerror = function(){ tryLoad(i+1); };
+      document.head.appendChild(s);
+    }
+    tryLoad(0);
   })();
   </script>
 </head>
