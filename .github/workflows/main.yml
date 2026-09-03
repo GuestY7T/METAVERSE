@@ -1,0 +1,4 @@
+- name: ChatGPT Code Generation
+  # You may pin to the exact commit or the version.
+  # uses: matsubo/write-code-and-create-pr-from-issue-by-chatgpt@ff49165b173a39306f9774cf4918dc6d8b07909f
+  uses: matsubo/write-code-and-create-pr-from-issue-by-chatgpt@v0.0.2
