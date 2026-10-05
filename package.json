@@ -1,12 +1,13 @@
 {
   "name": "metaverse",
   "version": "1.0.0",
-  "description": "METAVERSE Hub - Virtual Gaming World. Explore the METAVERSE! Play games, customize your R6 avatar, collect items, and build your virtual empire.",
+  "description": "METAVERSE Hub - canonical app is served from METAVERSE-main/",
   "main": "index.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "npx http-server -p 3000",
-    "start": "npx http-server -p 8080"
+    "test": "echo \"No automated tests configured\" && exit 0",
+    "dev": "npx http-server -p 3000 ./METAVERSE-main",
+    "start": "npx http-server -p 8080 ./METAVERSE-main",
+    "serve": "npx http-server -p 8080 ./METAVERSE-main"
   },
   "repository": {
     "type": "git",
