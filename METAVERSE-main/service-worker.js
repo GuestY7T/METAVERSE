@@ -4,9 +4,7 @@ const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './offline.html',
-  './runtime-foundation.js',
-  './vendor/three.0.128.0.min.js'
+  './offline.html'
 ];
 
 self.addEventListener('install', event => {

@@ -11,7 +11,9 @@ cd METAVERSE-main
 npx http-server -p 8080
 ```
 
-The root folder now acts as a small compatibility redirect so the repo does not run two conflicting app shells at the same time.
+Then open http://localhost:8080
+
+The root folder now acts as a compatibility redirect so the repo does not run two conflicting app shells at the same time.
 
 ## Repository status
 
@@ -19,6 +21,7 @@ The root folder now acts as a small compatibility redirect so the repo does not 
 - Legacy root shell: compatibility redirect only
 - Offline caching: hardened and scoped to the active app
 - Service worker registration: only runs on HTTP(S) after load
+- Deployment path: the active runtime is the nested app folder
 
 ## Quick launch
 
