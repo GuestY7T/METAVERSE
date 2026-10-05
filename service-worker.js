@@ -1,19 +1,13 @@
-// METAVERSE Service Worker - safer offline cache handling
-const CACHE_NAME = 'metaverse-v2';
-const APP_SHELL = [
-  './',
-  './index.html',
-  './manifest.json',
-  './offline.html'
-];
+// METAVERSE legacy redirect service worker
+// This app shell is intentionally minimal; the active app is in METAVERSE-main/.
+const CACHE_NAME = 'metaverse-root-redirect-v1';
+const APP_SHELL = ['./', './index.html'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(APP_SHELL))
-      .catch(err => {
-        console.warn('⚠️ Precaching failed:', err);
-      })
+      .catch(err => console.warn('⚠️ Root cache precache failed:', err))
   );
   self.skipWaiting();
 });
@@ -37,41 +31,19 @@ self.addEventListener('fetch', event => {
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
-        .then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
+        .then(response => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
           }
-          return networkResponse;
+          return response;
         })
-        .catch(() => {
-          return caches.match(req)
-            .then(cached => cached || caches.match('./offline.html'))
-            .then(fallback => fallback || Response.error());
-        })
+        .catch(() => caches.match('./index.html'))
     );
     return;
   }
 
   event.respondWith(
-    caches.match(req).then(cached => {
-      if (cached) return cached;
-
-      return fetch(req).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200) {
-          const copy = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
-        }
-        return networkResponse;
-      }).catch(() => {
-        return caches.match(req) || Response.error();
-      });
-    })
+    caches.match(req).then(cached => cached || fetch(req))
   );
-});
-
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });
