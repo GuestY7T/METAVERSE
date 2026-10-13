@@ -1,10 +1,12 @@
 // METAVERSE Service Worker - safer offline cache handling
-const CACHE_NAME = 'metaverse-v2';
+const CACHE_NAME = 'metaverse-v3';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './offline.html'
+  './offline.html',
+  './runtime-foundation.js',
+  './vendor/three.0.128.0.min.js'
 ];
 
 self.addEventListener('install', event => {
@@ -30,6 +32,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  if (req.cache === 'only-if-cached' && req.mode !== 'same-origin') return;
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
@@ -45,8 +48,7 @@ self.addEventListener('fetch', event => {
           return networkResponse;
         })
         .catch(() => {
-          return caches.match(req)
-            .then(cached => cached || caches.match('./offline.html'))
+          return caches.match('./offline.html')
             .then(fallback => fallback || Response.error());
         })
     );

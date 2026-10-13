@@ -314,7 +314,7 @@
     var cards = document.querySelectorAll('.game-card');
     for (var i = 0; i < cards.length; i += 1) {
       cards[i].style.transformOrigin = 'center center';
-      cards[i].style.scale = String(policy.cardDensity);
+      cards[i].style.transform = 'scale(' + policy.cardDensity + ')';
       cards[i].style.transitionDuration = policy.motion === 'reduced' ? '0s' : '0.2s';
     }
 
