@@ -96,3 +96,17 @@ test('saved position and display name restore into the runtime', () => {
   assert.equal(runtime.identity784.sessionContext.position.x, 12);
   assert.equal(runtime.identity784.updated, true);
 });
+
+test('customization setter persists allowed slots and rejects unsafe identifiers', () => {
+  const api = loadFoundation();
+  const good = api.setCustomization('head', 'hat:blue');
+  assert.equal(good.ok, true);
+  assert.equal(api.loadLocal().equippedCustomizations.head, 'hat:blue');
+  const badSlot = api.setCustomization('admin', 'hat:blue');
+  assert.equal(badSlot.ok, false);
+  assert.equal(badSlot.reason, 'invalid-slot');
+  const badId = api.setCustomization('feet', '../admin');
+  assert.equal(badId.ok, false);
+  assert.equal(badId.reason, 'invalid-item-id');
+  assert.equal(api.loadLocal().equippedCustomizations.feet, null);
+});
