@@ -4,7 +4,7 @@
   "description": "METAVERSE Hub - canonical app source for the repository",
   "main": "index.html",
   "scripts": {
-    "test": "echo \"No automated tests configured\" && exit 0",
+    "test": "node --test tests/player-foundation.test.cjs",
     "dev": "npx http-server -p 3000",
     "start": "npx http-server -p 8080",
     "serve": "npx http-server -p 8080"
