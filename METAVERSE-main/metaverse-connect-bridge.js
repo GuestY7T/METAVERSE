@@ -51,8 +51,8 @@
     status: function () { return Object.assign({}, state); },
     onStatus: function (fn) { listeners.add(fn); fn(Object.assign({}, state)); return function () { listeners.delete(fn); }; },
     getUser: function () { return refreshAuth(); },
-    signIn: function (email, password) { return shared().signIn(email, password); },
-    signUp: function (email, password, metadata) { return shared().signUp(email, password, metadata); },
+    signIn: async function (email, password) { var result = await shared().signIn(email, password); if (!result.error) await refreshAuth(); return result; },
+    signUp: async function (email, password, metadata) { var result = await shared().signUp(email, password, metadata); if (!result.error && result.data && result.data.session) await refreshAuth(); return result; },
     signOut: async function () { var r = await shared().signOut(); publish({ authenticated: false, userId: null, status: 'signed-out' }); return r; },
     getLocalState: readState,
     saveLocalState: function (snapshot) { return shared().writeLocalState(snapshot); },
@@ -64,9 +64,10 @@
 
   window.addEventListener('metaverse:state-changed', function (event) {
     if (!event || !event.detail || typeof event.detail !== 'object') return;
-    api.saveLocalState(event.detail);
+    var snapshot = event.detail.state || event.detail;
+    api.saveLocalState(snapshot);
     // Explicit event opt-in avoids unexpectedly uploading every UI interaction.
-    if (event.detail.syncToConnect === true) sync(event.detail.state || event.detail).catch(function () {});
+    if (event.detail.syncToConnect === true) sync(snapshot).catch(function () {});
   });
   window.addEventListener('online', function () {
     if (window.METAVERSE_SHARED_SYNC) shared().retryPending().then(function (r) {
