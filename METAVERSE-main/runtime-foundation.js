@@ -1532,6 +1532,288 @@
     return ret('Context right now: mode ' + ctx.mode + ', balance M$ ' + ctx.coins + ', recent portals ' + recentCount + '. Ask for a target plan: debug, badges, realism, performance, shop, mode, security, rules, or recap.');
   }
 
+  var META_AI_CONFIG_KEY = 'metaverse:meta-ai-config:v1';
+
+  function safeMetaAiStorageRead() {
+    try {
+      if (!window || !window.localStorage) return {};
+      var raw = window.localStorage.getItem(META_AI_CONFIG_KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function getMetaAiConfig() {
+    var stored = safeMetaAiStorageRead();
+    var defaults = {
+      enabled: false,
+      apiKey: '',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4o-mini',
+      apiKeyHeader: 'Authorization',
+      organization: '',
+      maxTokens: 300,
+      temperature: 0.6
+    };
+
+    var merged = Object.assign({}, defaults, stored || {});
+    merged.enabled = !!merged.enabled;
+    merged.apiKey = String(merged.apiKey || '').trim();
+    merged.baseUrl = String(merged.baseUrl || 'https://api.openai.com/v1').trim() || defaults.baseUrl;
+    merged.model = String(merged.model || defaults.model).trim() || defaults.model;
+    merged.apiKeyHeader = String(merged.apiKeyHeader || 'Authorization').trim() || 'Authorization';
+    merged.organization = String(merged.organization || '').trim();
+    merged.maxTokens = Number(merged.maxTokens) || defaults.maxTokens;
+    merged.temperature = Number(merged.temperature) || defaults.temperature;
+    return merged;
+  }
+
+  function setMetaAiConfig(nextConfig) {
+    var config = getMetaAiConfig();
+    var merged = Object.assign({}, config, nextConfig || {});
+    merged.enabled = !!merged.enabled;
+    merged.apiKey = String(merged.apiKey || '').trim();
+    merged.baseUrl = String(merged.baseUrl || 'https://api.openai.com/v1').trim() || 'https://api.openai.com/v1';
+    merged.model = String(merged.model || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
+    merged.apiKeyHeader = String(merged.apiKeyHeader || 'Authorization').trim() || 'Authorization';
+    merged.organization = String(merged.organization || '').trim();
+    merged.maxTokens = Number(merged.maxTokens) || 300;
+    merged.temperature = Number(merged.temperature) || 0.6;
+
+    try {
+      if (window && window.localStorage) {
+        window.localStorage.setItem(META_AI_CONFIG_KEY, JSON.stringify(merged));
+      }
+    } catch (err) {
+      // Storage may be blocked in private or restricted sessions.
+    }
+
+    return merged;
+  }
+
+  function buildMetaAiRequestBody(prompt, runtime, brain) {
+    var context = snapshotUiContext(runtime || { identity784: { globalIdentity: { displayName: 'Guest' } } });
+    var systemPrompt = [
+      'You are the METAVERSE AI assistant.',
+      'Keep answers concise, practical, and aligned to this sandbox runtime.',
+      'Current mode: ' + (context.mode || 'sandbox') + '.',
+      'Balance: M$ ' + (context.coins || 0) + '.',
+      'Profile: ' + (context.profile || 'Guest') + '.',
+      'If the live API is unavailable, respond with a safe local fallback summary instead of failing.'
+    ].join(' ');
+
+    return {
+      model: getMetaAiConfig().model,
+      temperature: getMetaAiConfig().temperature,
+      max_tokens: Math.max(64, Math.min(800, Number(getMetaAiConfig().maxTokens) || 300)),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: String(prompt || '') }
+      ]
+    };
+  }
+
+  async function askOpenAiCompatibleMetaAi(prompt, runtime, brain) {
+    var config = getMetaAiConfig();
+    if (!config.enabled || !config.apiKey) {
+      return { ok: false, reason: 'missing_api_key', fallback: buildAiReply(prompt, runtime, brain) };
+    }
+
+    var baseUrl = String(config.baseUrl || 'https://api.openai.com/v1').trim();
+    try {
+      var parsed = new URL(baseUrl);
+      var url = parsed.href.replace(/\/$/, '') + '/chat/completions';
+      var body = buildMetaAiRequestBody(prompt, runtime, brain);
+      var headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+
+      if (config.apiKeyHeader && config.apiKeyHeader.toLowerCase() === 'authorization') {
+        headers.Authorization = 'Bearer ' + config.apiKey;
+      } else {
+        headers[config.apiKeyHeader || 'Authorization'] = config.apiKey;
+      }
+
+      if (config.organization) {
+        headers['OpenAI-Organization'] = config.organization;
+      }
+
+      var response = await fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        var errText = '';
+        try {
+          errText = await response.text();
+        } catch (readErr) {
+          errText = '';
+        }
+        return { ok: false, reason: 'http_' + response.status, fallback: buildAiReply(prompt, runtime, brain), details: errText };
+      }
+
+      var data = await response.json();
+      var text = '';
+      if (data && data.choices && data.choices[0] && data.choices[0].message && typeof data.choices[0].message.content === 'string') {
+        text = data.choices[0].message.content;
+      } else if (data && data.choices && data.choices[0] && typeof data.choices[0].text === 'string') {
+        text = data.choices[0].text;
+      }
+
+      if (!text || !text.trim()) {
+        return { ok: false, reason: 'empty_response', fallback: buildAiReply(prompt, runtime, brain) };
+      }
+
+      return { ok: true, reply: String(text).trim() };
+    } catch (err) {
+      return { ok: false, reason: String(err && err.message ? err.message : err), fallback: buildAiReply(prompt, runtime, brain) };
+    }
+  }
+
+  function ensureMetaAiSettingsPanel() {
+    var existing = safeById('meta-ai-config-panel');
+    if (existing) return existing;
+
+    var panel = document.createElement('div');
+    panel.id = 'meta-ai-config-panel';
+    panel.style.position = 'fixed';
+    panel.style.right = '16px';
+    panel.style.bottom = '72px';
+    panel.style.width = 'min(360px, calc(100vw - 30px))';
+    panel.style.padding = '14px';
+    panel.style.borderRadius = '12px';
+    panel.style.background = 'rgba(8, 15, 24, 0.94)';
+    panel.style.border = '1px solid #2b4d79';
+    panel.style.boxShadow = '0 18px 42px rgba(0,0,0,0.4)';
+    panel.style.zIndex = '1500';
+    panel.style.color = '#edf8ff';
+    panel.style.display = 'grid';
+    panel.style.gap = '8px';
+    panel.style.fontSize = '0.8rem';
+
+    var title = document.createElement('div');
+    title.textContent = 'Meta AI settings';
+    title.style.fontWeight = '800';
+    title.style.color = '#98d8ff';
+
+    var config = getMetaAiConfig();
+    var enabled = document.createElement('label');
+    enabled.style.display = 'flex';
+    enabled.style.alignItems = 'center';
+    enabled.style.gap = '8px';
+    enabled.innerHTML = '<input id="meta-ai-enabled-toggle" type="checkbox" ' + (config.enabled ? 'checked' : '') + ' /> <span>Use live AI</span>';
+
+    var keyInput = document.createElement('input');
+    keyInput.id = 'meta-ai-api-key';
+    keyInput.type = 'password';
+    keyInput.placeholder = 'Paste OpenAI-compatible API key';
+    keyInput.value = config.apiKey || '';
+    keyInput.style.width = '100%';
+    keyInput.style.boxSizing = 'border-box';
+    keyInput.style.borderRadius = '8px';
+    keyInput.style.padding = '8px 10px';
+    keyInput.style.background = '#0f1b2a';
+    keyInput.style.border = '1px solid #334e69';
+    keyInput.style.color = '#edf8ff';
+
+    var urlInput = document.createElement('input');
+    urlInput.id = 'meta-ai-base-url';
+    urlInput.type = 'text';
+    urlInput.placeholder = 'https://api.openai.com/v1';
+    urlInput.value = config.baseUrl || 'https://api.openai.com/v1';
+    urlInput.style.width = '100%';
+    urlInput.style.boxSizing = 'border-box';
+    urlInput.style.borderRadius = '8px';
+    urlInput.style.padding = '8px 10px';
+    urlInput.style.background = '#0f1b2a';
+    urlInput.style.border = '1px solid #334e69';
+    urlInput.style.color = '#edf8ff';
+
+    var modelInput = document.createElement('input');
+    modelInput.id = 'meta-ai-model';
+    modelInput.type = 'text';
+    modelInput.placeholder = 'gpt-4o-mini';
+    modelInput.value = config.model || 'gpt-4o-mini';
+    modelInput.style.width = '100%';
+    modelInput.style.boxSizing = 'border-box';
+    modelInput.style.borderRadius = '8px';
+    modelInput.style.padding = '8px 10px';
+    modelInput.style.background = '#0f1b2a';
+    modelInput.style.border = '1px solid #334e69';
+    modelInput.style.color = '#edf8ff';
+
+    var row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+
+    var save = document.createElement('button');
+    save.type = 'button';
+    save.textContent = 'Save';
+    save.style.flex = '1';
+    save.style.borderRadius = '8px';
+    save.style.border = '1px solid #4ea7ff';
+    save.style.background = '#183c5f';
+    save.style.color = '#eefbff';
+    save.style.cursor = 'pointer';
+    save.style.fontWeight = '700';
+    save.addEventListener('click', function () {
+      var next = {
+        enabled: !!document.getElementById('meta-ai-enabled-toggle') && document.getElementById('meta-ai-enabled-toggle').checked,
+        apiKey: keyInput.value || '',
+        baseUrl: urlInput.value || 'https://api.openai.com/v1',
+        model: modelInput.value || 'gpt-4o-mini'
+      };
+      setMetaAiConfig(next);
+      var status = safeById('meta-ai-config-status');
+      if (status) status.textContent = next.enabled && next.apiKey ? 'Live AI ready.' : 'Local fallback active.';
+    });
+
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Close';
+    close.style.flex = '1';
+    close.style.borderRadius = '8px';
+    close.style.border = '1px solid #42576d';
+    close.style.background = '#121d2a';
+    close.style.color = '#cfe7ff';
+    close.style.cursor = 'pointer';
+    close.style.fontWeight = '700';
+    close.addEventListener('click', function () {
+      panel.style.display = 'none';
+    });
+
+    var status = document.createElement('div');
+    status.id = 'meta-ai-config-status';
+    status.textContent = config.enabled && config.apiKey ? 'Live AI ready.' : 'Local fallback active.';
+    status.style.color = '#9ad8ff';
+    status.style.minHeight = '18px';
+
+    row.appendChild(save);
+    row.appendChild(close);
+    panel.appendChild(title);
+    panel.appendChild(enabled);
+    panel.appendChild(keyInput);
+    panel.appendChild(urlInput);
+    panel.appendChild(modelInput);
+    panel.appendChild(row);
+    panel.appendChild(status);
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  window.getMetaAiConfig = getMetaAiConfig;
+  window.setMetaAiConfig = setMetaAiConfig;
+  window.openMetaAiSettings = function () {
+    var panel = ensureMetaAiSettingsPanel();
+    panel.style.display = 'grid';
+  };
+
   function setToggle(button, on) {
     if (!button) return;
     button.classList.toggle('on', !!on);
@@ -4392,7 +4674,6 @@
         return;
       }
 
-
       uiState.aiBusy = true;
       bumpEvidence('aiPrompts');
       if (sendButton) sendButton.disabled = true;
@@ -4401,10 +4682,13 @@
 
       try {
         await new Promise(function (resolve) { setTimeout(resolve, 150); });
-        var result = buildAiReply(text, runtime, uiState.aiBrain);
+
+        var liveResult = await askOpenAiCompatibleMetaAi(text, runtime, uiState.aiBrain);
+        var result = liveResult && liveResult.ok && liveResult.reply ? { intent: detectAiIntent(text), message: liveResult.reply } : (liveResult && liveResult.fallback ? liveResult.fallback : buildAiReply(text, runtime, uiState.aiBrain));
+
         appendChatMessage('ai', 'AI', result.message, true);
         rememberAiTurn(uiState.aiBrain, text, result.intent, snapshotUiContext(runtime), result.message);
-        setText('rt-last-action', 'ai response generated');
+        setText('rt-last-action', liveResult && liveResult.ok ? 'ai response generated (live)' : 'ai response generated (local fallback)');
       } finally {
         uiState.aiBusy = false;
         if (sendButton) sendButton.disabled = false;
