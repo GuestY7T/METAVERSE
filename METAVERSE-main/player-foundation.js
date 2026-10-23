@@ -10,7 +10,7 @@
   function finite(value) { return typeof value === 'number' && Number.isFinite(value); }
   function cleanText(value, max) {
     if (typeof value !== 'string') return '';
-    return value.replace(/[\\u0000-\\u001f\\u007f<>]/g, '').trim().slice(0, max);
+    return value.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, max);
   }
   function validatePosition(value) {
     if (!object(value)) return null;
