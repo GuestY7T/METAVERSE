@@ -4,8 +4,10 @@ on:
     branches: [feature/player-foundation-v0.2]
     paths:
       - 'METAVERSE-main/player-foundation.js'
+      - 'METAVERSE-main/service-worker.js'
       - 'METAVERSE-main/tests/**'
       - 'METAVERSE-main/package.json'
+      - 'METAVERSE-main/README.md'
       - '.github/workflows/player-foundation.yml'
   pull_request:
     paths:
