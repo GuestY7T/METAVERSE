@@ -10,7 +10,7 @@
   function finite(value) { return typeof value === 'number' && Number.isFinite(value); }
   function cleanText(value, max) {
     if (typeof value !== 'string') return '';
-    return value.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, max);
+    return value.replace(/[\\u0000-\\u001f\\u007f<>]/g, '').trim().slice(0, max);
   }
   function validatePosition(value) {
     if (!object(value)) return null;
@@ -53,6 +53,18 @@
       root.localStorage.setItem(KEY, JSON.stringify(clean));
       return { ok: true, state: clean };
     } catch (_) { return { ok: false, state: clean, reason: 'storage-write-failed' }; }
+  }
+  function setCustomization(slot, itemId) {
+    if (['head', 'torso', 'legs', 'feet'].indexOf(slot) < 0) {
+      return { ok: false, state: read(), reason: 'invalid-slot' };
+    }
+    if (itemId !== null && (typeof itemId !== 'string' || !/^[a-zA-Z0-9:_-]{1,96}$/.test(itemId))) {
+      return { ok: false, state: read(), reason: 'invalid-item-id' };
+    }
+    var state = read();
+    state.equippedCustomizations[slot] = itemId;
+    state.updatedAt = Date.now();
+    return write(state);
   }
   function captureRuntime(runtime) {
     if (!runtime) return read();
@@ -110,6 +122,10 @@
     root.addEventListener('784:update', function () {
       flush();
     });
+    root.addEventListener('metaverse:equipment-change', function (event) {
+      var detail = event && event.detail ? event.detail : {};
+      setCustomization(detail.slot, detail.itemId === undefined ? null : detail.itemId);
+    });
     root.addEventListener('pagehide', function () {
       flush();
     });
@@ -122,13 +138,14 @@
   }
 
   var api = Object.freeze({
-    version: '1.0.0',
+    version: '1.1.0',
     storageKey: KEY,
     validatePosition: validatePosition,
     validateEquipment: validateEquipment,
     validatePlayerState: validatePlayerState,
     loadLocal: read,
     saveLocal: write,
+    setCustomization: setCustomization,
     flush: flush,
     applyRuntime: applyRuntime,
     attach: attach,
