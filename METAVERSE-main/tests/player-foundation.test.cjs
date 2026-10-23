@@ -22,11 +22,11 @@ function loadFoundation() {
   };
   const context = { window, globalThis: window, Date, Number, Math, String, JSON, Object, Array, RegExp };
   vm.runInNewContext(fs.readFileSync(__dirname + '/../player-foundation.js', 'utf8'), context);
-  return window.METAVERSE_PLAYER_FOUNDATION;
+  return { api: window.METAVERSE_PLAYER_FOUNDATION, window };
 }
 
 test('position requires finite bounded coordinates', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   assert.deepEqual(JSON.parse(JSON.stringify(api.validatePosition({ x: 2, y: 0, z: -3, worldId: 'hub' }))), { x: 2, y: 0, z: -3, worldId: 'hub' });
   assert.equal(api.validatePosition({ x: Infinity, y: 0, z: 0 }), null);
   assert.equal(api.validatePosition({ x: 0, y: -1, z: 0 }), null);
@@ -34,7 +34,7 @@ test('position requires finite bounded coordinates', () => {
 });
 
 test('equipment accepts only known slots and safe item identifiers', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   const got = JSON.parse(JSON.stringify(api.validateEquipment({ head: 'hat:blue', feet: '../secret', extra: 'ignored' })));
   assert.equal(got.head, 'hat:blue');
   assert.equal(got.feet, null);
@@ -42,7 +42,7 @@ test('equipment accepts only known slots and safe item identifiers', () => {
 });
 
 test('state allowlist excludes caller-supplied IDs, currency, inventory, and roles', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   const state = JSON.parse(JSON.stringify(api.validatePlayerState({
     playerId: 'spoofed', userId: 'spoofed', walletBalance: 999999, premiumCurrency: 999999,
     inventory: ['admin-item'], role: 'owner', displayName: '<Guest>', position: { x: 1, y: 2, z: 3 }
@@ -55,7 +55,7 @@ test('state allowlist excludes caller-supplied IDs, currency, inventory, and rol
 });
 
 test('local save and load round-trip validated state', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   const result = api.saveLocal({ displayName: 'Builder', position: { x: 4, y: 0, z: 7, worldId: 'hangar' } });
   assert.equal(result.ok, true);
   assert.equal(api.loadLocal().displayName, 'Builder');
@@ -63,12 +63,12 @@ test('local save and load round-trip validated state', () => {
 });
 
 test('cloud writes stay disabled until a trusted persistence contract exists', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   assert.equal(api.cloudSyncEnabled, false);
 });
 
 test('final flush captures the latest runtime position and display name', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   const runtime = {
     spatial790: { predicted: { x: 10, y: 2, z: -4 } },
     identity784: { globalIdentity: { displayName: 'Builder' } }
@@ -81,7 +81,7 @@ test('final flush captures the latest runtime position and display name', () => 
 });
 
 test('saved position and display name restore into the runtime', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   api.saveLocal({ displayName: 'Explorer', position: { x: 12, y: 3, z: 8, worldId: 'hub' } });
   const runtime = {
     spatial790: { predicted: { x: 0, y: 0, z: 0 }, authoritative: { x: 0, y: 0, z: 0 } },
@@ -99,7 +99,7 @@ test('saved position and display name restore into the runtime', () => {
 });
 
 test('customization setter persists allowed slots and rejects unsafe identifiers', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   const good = api.setCustomization('head', 'hat:blue');
   assert.equal(good.ok, true);
   assert.equal(api.loadLocal().equippedCustomizations.head, 'hat:blue');
@@ -113,19 +113,20 @@ test('customization setter persists allowed slots and rejects unsafe identifiers
 });
 
 test('display name updates are sanitized and emit a state-change event', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   const events = [];
-  // The harness event dispatcher is exposed through the same event target as the API.
-  const source = fs.readFileSync(__dirname + '/../player-foundation.js', 'utf8');
-  assert.match(source, /metaverse:player-state-changed/);
+  window.addEventListener('metaverse:player-state-changed', event => events.push(event.detail));
   const result = api.setDisplayName('  <Explorer>  ');
   assert.equal(result.ok, true);
   assert.equal(api.loadLocal().displayName, 'Explorer');
+  assert.equal(events.length, 1);
+  assert.equal(events[0].displayName, 'Explorer');
   assert.equal(api.setDisplayName('   ').reason, 'invalid-display-name');
+  assert.equal(api.validatePlayerState({ displayName: 'Ex\\u0000plorer' }).displayName, 'Explorer');
 });
 
 test('local reset clears only the player foundation storage key', () => {
-  const api = loadFoundation();
+  const { api, window } = loadFoundation();
   api.saveLocal({ displayName: 'Builder', position: { x: 5, y: 0, z: 9 } });
   const result = api.resetLocal();
   assert.equal(result.ok, true);
