@@ -122,7 +122,7 @@ test('display name updates are sanitized and emit a state-change event', () => {
   assert.equal(events.length, 1);
   assert.equal(events[0].displayName, 'Explorer');
   assert.equal(api.setDisplayName('   ').reason, 'invalid-display-name');
-  assert.equal(api.validatePlayerState({ displayName: 'Ex\\u0000plorer' }).displayName, 'Explorer');
+  assert.equal(api.validatePlayerState({ displayName: 'Ex\u0000plorer' }).displayName, 'Explorer');
 });
 
 test('local reset clears only the player foundation storage key', () => {
