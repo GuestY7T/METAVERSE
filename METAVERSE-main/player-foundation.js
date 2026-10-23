@@ -51,9 +51,33 @@
     try {
       if (!root.localStorage) return { ok: false, state: clean, reason: 'storage-unavailable' };
       root.localStorage.setItem(KEY, JSON.stringify(clean));
+      if (typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
+        root.dispatchEvent(new root.CustomEvent('metaverse:player-state-changed', { detail: clean }));
+      }
       return { ok: true, state: clean };
     } catch (_) { return { ok: false, state: clean, reason: 'storage-write-failed' }; }
   }
+  function setDisplayName(displayName) {
+    var state = read();
+    var cleaned = cleanText(displayName, 80);
+    if (!cleaned) return { ok: false, state: state, reason: 'invalid-display-name' };
+    state.displayName = cleaned;
+    state.updatedAt = Date.now();
+    return write(state);
+  }
+
+  function resetLocal() {
+    try {
+      if (!root.localStorage) return { ok: false, state: validatePlayerState({}), reason: 'storage-unavailable' };
+      root.localStorage.removeItem(KEY);
+      var clean = validatePlayerState({});
+      if (typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
+        root.dispatchEvent(new root.CustomEvent('metaverse:player-state-changed', { detail: clean }));
+      }
+      return { ok: true, state: clean };
+    } catch (_) { return { ok: false, state: read(), reason: 'storage-reset-failed' }; }
+  }
+
   function setCustomization(slot, itemId) {
     if (['head', 'torso', 'legs', 'feet'].indexOf(slot) < 0) {
       return { ok: false, state: read(), reason: 'invalid-slot' };
@@ -135,6 +159,9 @@
     root.addEventListener('metaverse:runtime-ready', function () {
       applyRuntime(root.MetaverseRuntime, read());
     });
+    root.addEventListener('storage', function (event) {
+      if (event && event.key === KEY) applyRuntime(root.MetaverseRuntime, read());
+    });
   }
 
   var api = Object.freeze({
@@ -146,6 +173,8 @@
     loadLocal: read,
     saveLocal: write,
     setCustomization: setCustomization,
+    setDisplayName: setDisplayName,
+    resetLocal: resetLocal,
     flush: flush,
     applyRuntime: applyRuntime,
     attach: attach,
