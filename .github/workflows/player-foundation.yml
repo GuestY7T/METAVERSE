@@ -1,0 +1,27 @@
+name: METAVERSE Player Foundation
+on:
+  push:
+    branches: [feature/player-foundation-v0.2]
+    paths:
+      - 'METAVERSE-main/player-foundation.js'
+      - 'METAVERSE-main/tests/**'
+      - 'METAVERSE-main/package.json'
+      - '.github/workflows/player-foundation.yml'
+  pull_request:
+    paths:
+      - 'METAVERSE-main/player-foundation.js'
+      - 'METAVERSE-main/tests/**'
+      - 'METAVERSE-main/package.json'
+      - '.github/workflows/player-foundation.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: METAVERSE-main
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm test
