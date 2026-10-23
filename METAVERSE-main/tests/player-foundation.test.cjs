@@ -65,3 +65,34 @@ test('cloud writes stay disabled until a trusted persistence contract exists', (
   const api = loadFoundation();
   assert.equal(api.cloudSyncEnabled, false);
 });
+
+test('final flush captures the latest runtime position and display name', () => {
+  const api = loadFoundation();
+  const runtime = {
+    spatial790: { predicted: { x: 10, y: 2, z: -4 } },
+    identity784: { globalIdentity: { displayName: 'Builder' } }
+  };
+  const result = api.flush(runtime);
+  assert.equal(result.ok, true);
+  const state = api.loadLocal();
+  assert.deepEqual(JSON.parse(JSON.stringify(state.position)), { x: 10, y: 2, z: -4, worldId: 'sandbox' });
+  assert.equal(state.displayName, 'Builder');
+});
+
+test('saved position and display name restore into the runtime', () => {
+  const api = loadFoundation();
+  api.saveLocal({ displayName: 'Explorer', position: { x: 12, y: 3, z: 8, worldId: 'hub' } });
+  const runtime = {
+    spatial790: { predicted: { x: 0, y: 0, z: 0 }, authoritative: { x: 0, y: 0, z: 0 } },
+    identity784: {
+      globalIdentity: { displayName: 'Guest' },
+      sessionContext: { position: { x: 0, y: 0, z: 0 } },
+      emitUpdate: function () { this.updated = true; }
+    }
+  };
+  assert.equal(api.applyRuntime(runtime, api.loadLocal()), true);
+  assert.deepEqual(JSON.parse(JSON.stringify(runtime.spatial790.predicted)), { x: 12, y: 3, z: 8 });
+  assert.equal(runtime.identity784.globalIdentity.displayName, 'Explorer');
+  assert.equal(runtime.identity784.sessionContext.position.x, 12);
+  assert.equal(runtime.identity784.updated, true);
+});
