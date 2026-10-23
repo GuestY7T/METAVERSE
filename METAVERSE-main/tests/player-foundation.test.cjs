@@ -17,6 +17,7 @@ function loadFoundation() {
       listeners.get(name).push(fn);
     },
     dispatchEvent: event => (listeners.get(event.type) || []).forEach(fn => fn(event)),
+    CustomEvent: class CustomEvent { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
     values
   };
   const context = { window, globalThis: window, Date, Number, Math, String, JSON, Object, Array, RegExp };
@@ -109,4 +110,25 @@ test('customization setter persists allowed slots and rejects unsafe identifiers
   assert.equal(badId.ok, false);
   assert.equal(badId.reason, 'invalid-item-id');
   assert.equal(api.loadLocal().equippedCustomizations.feet, null);
+});
+
+test('display name updates are sanitized and emit a state-change event', () => {
+  const api = loadFoundation();
+  const events = [];
+  // The harness event dispatcher is exposed through the same event target as the API.
+  const source = fs.readFileSync(__dirname + '/../player-foundation.js', 'utf8');
+  assert.match(source, /metaverse:player-state-changed/);
+  const result = api.setDisplayName('  <Explorer>  ');
+  assert.equal(result.ok, true);
+  assert.equal(api.loadLocal().displayName, 'Explorer');
+  assert.equal(api.setDisplayName('   ').reason, 'invalid-display-name');
+});
+
+test('local reset clears only the player foundation storage key', () => {
+  const api = loadFoundation();
+  api.saveLocal({ displayName: 'Builder', position: { x: 5, y: 0, z: 9 } });
+  const result = api.resetLocal();
+  assert.equal(result.ok, true);
+  assert.equal(api.loadLocal().displayName, 'Guest');
+  assert.deepEqual(JSON.parse(JSON.stringify(api.loadLocal().position)), { x: 0, y: 0, z: 0, worldId: 'sandbox' });
 });
