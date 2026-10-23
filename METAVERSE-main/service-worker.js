@@ -1,10 +1,13 @@
 // METAVERSE Service Worker - safer offline cache handling
-const CACHE_NAME = 'metaverse-v3';
+const CACHE_NAME = 'metaverse-v4';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
   './offline.html',
+  './player-foundation.js',
+  './metaverse-shared-sync-v1.js',
+  './metaverse-connect-bridge.js',
   './runtime-foundation.js',
   './vendor/three.0.128.0.min.js'
 ];
