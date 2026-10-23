@@ -43,3 +43,29 @@ For static deployment, publish this folder as the site root.
 ## Status
 
 This app is in a good maintenance baseline and should continue to be validated in-browser as a frontend prototype.
+
+
+## Player Foundation (feature branch)
+
+The Player Foundation provides a validated, local-first player profile and position snapshot. It persists a sanitized display name, bounded world position, and allowlisted equipment slots (head, torso, legs, feet) in browser storage.
+
+### Integration API
+
+- METAVERSE_PLAYER_FOUNDATION.loadLocal() — load a validated snapshot.
+- saveLocal(state) — validate and persist the supported snapshot fields.
+- setDisplayName(name) — update a sanitized display name.
+- setCustomization(slot, itemId) — save an allowlisted equipment slot and safe item identifier.
+- resetLocal() — clear only the Player Foundation storage key.
+- flush(runtime) — capture the current runtime position/name and persist it.
+- applyRuntime(runtime, state) — restore validated position and display name.
+- cloudSyncEnabled remains false until the existing Supabase write contract and authorization rules are audited.
+
+Successful local writes emit metaverse:player-state-changed. UI code can request a customization change by dispatching metaverse:equipment-change with { slot, itemId }. This API persists the choice; rendering the selected item on an avatar requires a separate, explicit avatar-renderer integration.
+
+### Offline behavior
+
+The service worker cache is versioned as metaverse-v4 and includes the Player Foundation, shared-sync bridge, Connect bridge, and runtime script. This keeps the app shell's local integration scripts available after a successful cache install. It does not guarantee offline access to remote services or assets that are not in the shell cache.
+
+### Safety boundary
+
+This browser-side state is convenience persistence, not authoritative security. Never trust client state for account identity, currency, inventory ownership, moderation roles, rewards, or multiplayer authority. Do not enable cloud writes until server-side authorization, schema compatibility, revision/conflict handling, and RLS/RPC behavior have been verified.
