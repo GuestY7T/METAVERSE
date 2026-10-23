@@ -4636,6 +4636,11 @@
     }
 
     window.MetaverseRuntime = runtime;
+    if (window.METAVERSE_PLAYER_FOUNDATION) {
+      window.METAVERSE_PLAYER_FOUNDATION.applyRuntime(runtime, window.METAVERSE_PLAYER_FOUNDATION.loadLocal());
+      window.METAVERSE_PLAYER_FOUNDATION.attach();
+      window.dispatchEvent(new CustomEvent('metaverse:runtime-ready', { detail: { playerFoundationVersion: window.METAVERSE_PLAYER_FOUNDATION.version } }));
+    }
     window.MetaverseRuntime.implementMode = {
       state: 'active',
       source: 'METAVERSE_MASTER_IDEAS_LIST.md'
