@@ -93,17 +93,28 @@
     }
     return true;
   }
+  function flush(runtime) {
+    // A final save bypasses the movement throttle so the latest position is not lost on exit.
+    return write(captureRuntime(runtime || root.MetaverseRuntime));
+  }
+
   function attach() {
     if (attached || !root.addEventListener) return;
     attached = true;
-    root.addEventListener('790:state', function (event) {
+    root.addEventListener('790:state', function () {
       var now = Date.now();
       if (now - lastSaveAt < SAVE_INTERVAL_MS) return;
       lastSaveAt = now;
-      write(captureRuntime(root.MetaverseRuntime));
+      flush();
     });
     root.addEventListener('784:update', function () {
-      write(captureRuntime(root.MetaverseRuntime));
+      flush();
+    });
+    root.addEventListener('pagehide', function () {
+      flush();
+    });
+    root.addEventListener('visibilitychange', function () {
+      if (root.document && root.document.visibilityState === 'hidden') flush();
     });
     root.addEventListener('metaverse:runtime-ready', function () {
       applyRuntime(root.MetaverseRuntime, read());
@@ -118,6 +129,7 @@
     validatePlayerState: validatePlayerState,
     loadLocal: read,
     saveLocal: write,
+    flush: flush,
     applyRuntime: applyRuntime,
     attach: attach,
     cloudSyncEnabled: false
