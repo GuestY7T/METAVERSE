@@ -60,11 +60,11 @@ The Player Foundation provides a validated, local-first player profile and posit
 - applyRuntime(runtime, state) — restore validated position and display name.
 - cloudSyncEnabled remains false until the existing Supabase write contract and authorization rules are audited.
 
-Successful local writes emit metaverse:player-state-changed. UI code can request a customization change by dispatching metaverse:equipment-change with { slot, itemId }. This API persists the choice; rendering the selected item on an avatar requires a separate, explicit avatar-renderer integration.
+Successful local writes emit metaverse:player-state-changed. Display-name changes update the active runtime identity when it is available. Runtime restoration emits metaverse:player-state-restored, and customization changes emit metaverse:player-customizations-updated for a renderer integration to consume. UI code can request a customization change by dispatching metaverse:equipment-change with { slot, itemId }. The API persists the choice but does not itself render avatar equipment. The current spatial runtime has no world-selection interface, so worldId is preserved in the local snapshot but is not applied to a live world manager.
 
 ### Offline behavior
 
-The service worker cache is versioned as metaverse-v4 and includes the Player Foundation, shared-sync bridge, Connect bridge, and runtime script. This keeps the app shell's local integration scripts available after a successful cache install. It does not guarantee offline access to remote services or assets that are not in the shell cache.
+The service worker cache is versioned as metaverse-v5 and includes the Player Foundation, shared-sync bridge, Connect bridge, and runtime script. This keeps the app shell's local integration scripts available only after every required app-shell asset has been cached successfully; an incomplete precache now fails installation instead of silently activating a broken offline shell. It does not guarantee offline access to remote services or assets that are not in the shell cache.
 
 ### Safety boundary
 
