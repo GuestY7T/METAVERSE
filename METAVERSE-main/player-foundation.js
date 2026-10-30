@@ -64,13 +64,7 @@
     if (!cleaned) return { ok: false, state: state, reason: 'invalid-display-name' };
     state.displayName = cleaned;
     state.updatedAt = Date.now();
-    var result = write(state);
-    if (result.ok && root.MetaverseRuntime && root.MetaverseRuntime.identity784) {
-      var identity = root.MetaverseRuntime.identity784;
-      if (identity.globalIdentity) identity.globalIdentity.displayName = cleaned;
-      if (typeof identity.emitUpdate === 'function') identity.emitUpdate();
-    }
-    return result;
+    return write(state);
   }
 
   function resetLocal() {
