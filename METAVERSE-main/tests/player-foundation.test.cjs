@@ -163,6 +163,14 @@ test('local reset restores the default identity and announces restored state', (
   const { api, window } = loadFoundation();
   const restored = [];
   window.addEventListener('metaverse:player-state-restored', event => restored.push(event.detail));
+  window.MetaverseRuntime = {
+    spatial790: { predicted: { x: 5, y: 0, z: 9 }, authoritative: { x: 5, y: 0, z: 9 } },
+    identity784: {
+      globalIdentity: { displayName: 'Builder' },
+      sessionContext: { position: { x: 5, y: 0, z: 9 } },
+      emitUpdate: () => {}
+    }
+  };
   api.saveLocal({ displayName: 'Builder', position: { x: 5, y: 0, z: 9 } });
   const result = api.resetLocal();
   assert.equal(result.ok, true);
