@@ -98,7 +98,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
       controls.minPolarAngle = 0.18;
       controls.maxPolarAngle = Math.PI * 0.48;
       resize();
-      new ResizeObserver(resize).observe(stage);
+      if ('ResizeObserver' in window) new ResizeObserver(resize).observe(stage);\n      else window.addEventListener('resize', resize);
 
       const gltf = await new GLTFLoader().loadAsync(MODEL_URL);
       model = gltf.scene;
