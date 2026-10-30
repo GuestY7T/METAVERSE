@@ -1,21 +1,6 @@
 name: METAVERSE Player Foundation
 on:
   workflow_dispatch:
-  push:
-    branches: [feature/player-foundation-v0.2]
-    paths:
-      - 'METAVERSE-main/player-foundation.js'
-      - 'METAVERSE-main/service-worker.js'
-      - 'METAVERSE-main/tests/**'
-      - 'METAVERSE-main/package.json'
-      - '.github/workflows/player-foundation.yml'
-  pull_request:
-    paths:
-      - 'METAVERSE-main/player-foundation.js'
-      - 'METAVERSE-main/service-worker.js'
-      - 'METAVERSE-main/tests/**'
-      - 'METAVERSE-main/package.json'
-      - '.github/workflows/player-foundation.yml'
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,5 +11,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - run: npm test

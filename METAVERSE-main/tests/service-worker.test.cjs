@@ -12,7 +12,7 @@ function loadServiceWorker(options = {}) {
   };
   const cacheStore = {
     open: async () => cache,
-    keys: async () => ['metaverse-v3', 'metaverse-v4'],
+    keys: async () => ['metaverse-v3', 'metaverse-v4', 'metaverse-v5'],
     delete: async key => key !== 'metaverse-v3',
     match: async () => null
   };
@@ -32,13 +32,15 @@ function loadServiceWorker(options = {}) {
   return { handlers, cached, cacheStore };
 }
 
-test('offline app shell includes every local script loaded by index.html', async () => {
+test('offline app shell includes the real index, logo, viewer, and local runtime scripts', async () => {
   const { handlers, cached } = loadServiceWorker();
   const pending = [];
   handlers.get('install')({ waitUntil: promise => pending.push(promise) });
   await Promise.all(pending);
   for (const asset of [
     './index.html',
+    './assets/metaverse-mark.svg',
+    './avatar-viewer.js',
     './player-foundation.js',
     './metaverse-shared-sync-v1.js',
     './metaverse-connect-bridge.js',
@@ -49,9 +51,9 @@ test('offline app shell includes every local script loaded by index.html', async
   }
 });
 
-test('service worker cache version is bumped for the new app shell', () => {
+test('service worker cache version is bumped for the real player hub', () => {
   const source = fs.readFileSync(__dirname + '/../service-worker.js', 'utf8');
-  assert.match(source, /CACHE_NAME = 'metaverse-v5'/);
+  assert.match(source, /CACHE_NAME = 'metaverse-v6'/);
 });
 
 test('incomplete app-shell precache rejects service-worker installation', async () => {
@@ -59,4 +61,13 @@ test('incomplete app-shell precache rejects service-worker installation', async 
   const pending = [];
   handlers.get('install')({ waitUntil: promise => pending.push(promise) });
   await assert.rejects(Promise.all(pending), /precache failed/);
+});
+
+test('active index contains the logo, real avatar viewer, and usable profile controls', () => {
+  const html = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+  assert.match(html, /assets\/metaverse-mark\.svg/);
+  assert.match(html, /avatar-viewer\.js/);
+  assert.match(html, /id="avatar-canvas"/);
+  assert.match(html, /id="profile-form"/);
+  assert.match(html, /METAVERSE_PLAYER_FOUNDATION/);
 });
