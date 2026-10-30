@@ -69,5 +69,5 @@ test('active index contains the logo, real avatar viewer, and usable profile con
   assert.match(html, /avatar-viewer\.js/);
   assert.match(html, /id="avatar-canvas"/);
   assert.match(html, /id="profile-form"/);
-  assert.match(html, /METAVERSE_PLAYER_FOUNDATION/);
+  assert.match(html, /player-foundation\\.js/);
 });
