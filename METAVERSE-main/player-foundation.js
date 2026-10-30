@@ -81,6 +81,7 @@
       if (typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
         root.dispatchEvent(new root.CustomEvent('metaverse:player-state-changed', { detail: clean }));
       }
+      applyRuntime(root.MetaverseRuntime, clean);
       return { ok: true, state: clean };
     } catch (_) { return { ok: false, state: read(), reason: 'storage-reset-failed' }; }
   }
