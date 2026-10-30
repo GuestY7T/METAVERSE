@@ -128,6 +128,7 @@ test('display name updates are sanitized and emit a state-change event', () => {
 test('local reset clears only the player foundation storage key', () => {
   const { api, window } = loadFoundation();
   api.saveLocal({ displayName: 'Builder', position: { x: 5, y: 0, z: 9 } });
+  restored.length = 0;
   const result = api.resetLocal();
   assert.equal(result.ok, true);
   assert.equal(api.loadLocal().displayName, 'Guest');
