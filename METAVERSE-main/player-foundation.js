@@ -54,6 +54,7 @@
       if (typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
         root.dispatchEvent(new root.CustomEvent('metaverse:player-state-changed', { detail: clean }));
       }
+      applyRuntime(root.MetaverseRuntime, clean);
       return { ok: true, state: clean };
     } catch (_) { return { ok: false, state: clean, reason: 'storage-write-failed' }; }
   }
@@ -63,7 +64,13 @@
     if (!cleaned) return { ok: false, state: state, reason: 'invalid-display-name' };
     state.displayName = cleaned;
     state.updatedAt = Date.now();
-    return write(state);
+    var result = write(state);
+    if (result.ok && root.MetaverseRuntime && root.MetaverseRuntime.identity784) {
+      var identity = root.MetaverseRuntime.identity784;
+      if (identity.globalIdentity) identity.globalIdentity.displayName = cleaned;
+      if (typeof identity.emitUpdate === 'function') identity.emitUpdate();
+    }
+    return result;
   }
 
   function resetLocal() {
@@ -88,7 +95,13 @@
     var state = read();
     state.equippedCustomizations[slot] = itemId;
     state.updatedAt = Date.now();
-    return write(state);
+    var result = write(state);
+    if (result.ok && typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
+      root.dispatchEvent(new root.CustomEvent('metaverse:player-customizations-updated', {
+        detail: { equippedCustomizations: result.state.equippedCustomizations }
+      }));
+    }
+    return result;
   }
   function captureRuntime(runtime) {
     if (!runtime) return read();
@@ -126,6 +139,12 @@
         identity.sessionContext.position.z = state.position.z;
       }
       if (typeof identity.emitUpdate === 'function') identity.emitUpdate();
+    }
+    if (typeof root.dispatchEvent === 'function' && typeof root.CustomEvent === 'function') {
+      root.dispatchEvent(new root.CustomEvent('metaverse:player-customizations-updated', {
+        detail: { equippedCustomizations: state.equippedCustomizations }
+      }));
+      root.dispatchEvent(new root.CustomEvent('metaverse:player-state-restored', { detail: state }));
     }
     return true;
   }
@@ -165,7 +184,7 @@
   }
 
   var api = Object.freeze({
-    version: '1.1.0',
+    version: '1.2.0',
     storageKey: KEY,
     validatePosition: validatePosition,
     validateEquipment: validateEquipment,
