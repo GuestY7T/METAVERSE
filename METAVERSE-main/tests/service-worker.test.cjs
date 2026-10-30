@@ -3,11 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function loadServiceWorker() {
+function loadServiceWorker(options = {}) {
   const handlers = new Map();
   const cached = [];
   const cache = {
-    addAll: async paths => { cached.push(...paths); },
+    addAll: async paths => { if (options.failPrecache) throw new Error('precache failed'); cached.push(...paths); },
     put: async () => {}
   };
   const cacheStore = {
@@ -51,5 +51,12 @@ test('offline app shell includes every local script loaded by index.html', async
 
 test('service worker cache version is bumped for the new app shell', () => {
   const source = fs.readFileSync(__dirname + '/../service-worker.js', 'utf8');
-  assert.match(source, /CACHE_NAME = 'metaverse-v4'/);
+  assert.match(source, /CACHE_NAME = 'metaverse-v5'/);
+});
+
+test('incomplete app-shell precache rejects service-worker installation', async () => {
+  const { handlers } = loadServiceWorker({ failPrecache: true });
+  const pending = [];
+  handlers.get('install')({ waitUntil: promise => pending.push(promise) });
+  await assert.rejects(Promise.all(pending), /precache failed/);
 });
