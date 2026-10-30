@@ -133,3 +133,40 @@ test('local reset clears only the player foundation storage key', () => {
   assert.equal(api.loadLocal().displayName, 'Guest');
   assert.deepEqual(JSON.parse(JSON.stringify(api.loadLocal().position)), { x: 0, y: 0, z: 0, worldId: 'sandbox' });
 });
+
+test('display-name changes update the live runtime identity', () => {
+  const { api, window } = loadFoundation();
+  const updates = [];
+  window.MetaverseRuntime = {
+    identity784: {
+      globalIdentity: { displayName: 'Guest' },
+      emitUpdate: () => updates.push('updated')
+    }
+  };
+  const result = api.setDisplayName('Builder');
+  assert.equal(result.ok, true);
+  assert.equal(window.MetaverseRuntime.identity784.globalIdentity.displayName, 'Builder');
+  assert.deepEqual(updates, ['updated']);
+});
+
+test('customization changes emit a renderer-facing update event', () => {
+  const { api, window } = loadFoundation();
+  const events = [];
+  window.addEventListener('metaverse:player-customizations-updated', event => events.push(event.detail));
+  const result = api.setCustomization('head', 'hat:blue');
+  assert.equal(result.ok, true);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].equippedCustomizations.head, 'hat:blue');
+});
+
+test('local reset restores the default identity and announces restored state', () => {
+  const { api, window } = loadFoundation();
+  const restored = [];
+  window.addEventListener('metaverse:player-state-restored', event => restored.push(event.detail));
+  api.saveLocal({ displayName: 'Builder', position: { x: 5, y: 0, z: 9 } });
+  const result = api.resetLocal();
+  assert.equal(result.ok, true);
+  assert.equal(api.loadLocal().displayName, 'Guest');
+  assert.equal(restored.length, 1);
+  assert.equal(restored[0].displayName, 'Guest');
+});
